@@ -9,6 +9,10 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+      DJANGO_SETTINGS_MODULE: mysite.settings  # adapte selon ton projet
+
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -21,17 +25,13 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          pip install flake8 nose
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; else pip install "Django>=4.2,<5.0" flake8 nose; fi
 
-      - name: Lint with Flake8 (non-blocking)
-        run: |
-          flake8 . || echo "Flake8 reported issues (non-blocking)"
-        continue-on-error: true
+      - name: Lint with Flake8
+        run: flake8 .
 
       - name: Run tests (nosetests) and produce JUnit XML
-        run: |
-          nosetests --with-xunit --xunit-file=nosetests.xml
+        run: nosetests --with-xunit --xunit-file=nosetests.xml
 
       - name: Upload nosetests JUnit XML as artifact
         uses: actions/upload-artifact@v4
