@@ -1,14 +1,15 @@
-name: CI + Docker to ECR
+name: Django Polls CI
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
   pull_request:
-    branches: [ master ]
+    branches: [master]
 
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -30,42 +31,3 @@ jobs:
 
       - name: Run tests
         run: python manage.py test --verbosity 2
-
-  docker-build-and-push:
-    needs: [lint-and-test]
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write    # OIDC
-      contents: read
-
-    env:
-      AWS_REGION: ${{ secrets.AWS_REGION }}          # ex: eu-west-3
-      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}  # ex: 123456789012
-      ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}  # ex: django-pollsenzo
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-actions-ecr
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Login to Amazon ECR
-        id: ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build, tag, and push image to ECR
-        env:
-          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-
-      - name: Output image URI
-        run: echo "Image pushed: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
